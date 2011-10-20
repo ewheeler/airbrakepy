@@ -64,7 +64,7 @@ class AirbrakeSender(multiprocessing.Process):
 
         raise Exception(exceptionMessage)
 
-_DEFAULT_AIRBRAKE_URL = "http://airbrakeapp.com/notifier_api/v2/notices"
+_DEFAULT_AIRBRAKE_URL = "http://hoptoadapp.com/notifier_api/v2/notices"
 
 class AirbrakeHandler(logging.Handler):
     def __init__(self, api_key, environment=None, component_name=None, node_name=None,
@@ -131,23 +131,13 @@ class AirbrakeHandler(logging.Handler):
         if exn:
             message = "{0}: {1}".format(message, str(exn))
 
-        xml = xmlbuilder.XMLBuilder()
+        xml = xmlbuilder.XMLBuilder(encoding='utf8')
         with xml.notice(version=2.0):
             xml << ('api-key', self.api_key)
             with xml.notifier:
                 xml << ('name', __app_name__)
                 xml << ('version', __version__)
                 xml << ('url', __source_url__)
-            with xml('server-environment'):
-                xml << ('environment-name', self.environment)
-            with xml.request:
-                xml << ("url", "")
-                xml << ("component", self.component_name)
-                with xml("cgi-data"):
-                    with xml("var", key="nodeName"):
-                        xml << self.node_name
-                    with xml("var", key="componentName"):
-                        xml << self.component_name
             with xml.error:
                 xml << ('class', '' if exn is None else exn.__class__.__name__)
                 xml << ('message', message)
@@ -157,5 +147,17 @@ class AirbrakeHandler(logging.Handler):
                     else:
                         [xml << ('line', {'file': filename, 'number': line_number, 'method': "{0}: {1}".format(function_name, text)})\
                          for filename, line_number, function_name, text in traceback.extract_tb(trace)]
-        return str(xml)
+            with xml.request:
+                xml << ("url", "")
+                xml << ("action", "")
+                xml << ("component", self.component_name)
+                with xml("cgi-data"):
+                    with xml("var", key="nodeName"):
+                        xml << self.node_name
+                    with xml("var", key="componentName"):
+                        xml << self.component_name
+            with xml('server-environment'):
+                xml << ('environment-name', self.environment)
+                xml << ('app-version', '')
+        return unicode(xml)
 
